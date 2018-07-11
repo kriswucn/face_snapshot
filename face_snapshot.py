@@ -41,3 +41,41 @@ class FaceSnapshot(object):
 
             rects = self.detector(img, 0)
             print('[%s] %d face(s) found.' % (datetime.datetime.now(), len(rects)))
+            self.snapshot_face(rects, cv_img)
+            # 窗口显示图片
+            self.win.clear_overlay()
+            self.win.set_image(img)
+
+    def snapshot_face(self, rects, cv_img):
+        # 人脸区域
+        if len(rects) != 0:
+            for k, d in enumerate(rects):
+                p_start = (d.left(), d.top())
+                p_end = (d.right(), d.bottom())
+                height = d.bottom() - d.top()
+                width = d.right() - d.left()
+
+            # 根据人脸大小生成临时图片
+
+            cv2.rectangle(cv_img, p_start, p_end, (0, 255, 255), 2)
+            tmp_img = np.zeros((height, width, 3), np.uint8)
+
+            # 保存图片
+            for x in range(height):
+                for y in range(width):
+                    try:
+                        tmp_img[x][y] = cv_img[d.top() + x][d.left() + y]
+                    except IndexError:
+                        print('Index is out of bound...')
+
+            img_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f") + '.jpg'
+            full_img_path = os.path.join(self.save_path, img_name)
+            cv2.imwrite(full_img_path, tmp_img)
+
+
+if __name__ == '__main__':
+    video_path = 'kris.mp4'
+    save_path = 'snap_faces'
+    face_snapshot = FaceSnapshot(video_path, save_path)
+    face_snapshot.get_predictor()
+    face_snapshot.detect_face()
