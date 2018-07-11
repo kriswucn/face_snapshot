@@ -5,6 +5,7 @@ import datetime
 import sys
 import os
 import numpy as np
+import logging
 
 
 class FaceSnapshot(object):
@@ -15,6 +16,7 @@ class FaceSnapshot(object):
         self.win = dlib.image_window()
         self.predictor = None
         self.cap = None
+        self.logger = logging.getLogger(__name__)
 
     def get_predictor(self):
         current_path = os.getcwd()
@@ -33,15 +35,21 @@ class FaceSnapshot(object):
 
         while self.cap.isOpened():
             ret, cv_img = self.cap.read()
+            # img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
             img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
-
             if img is None:
                 print('Video file maybe broken.')
                 sys.exit(-1)
 
             rects = self.detector(img, 0)
-            print('[%s] %d face(s) found.' % (datetime.datetime.now(), len(rects)))
+
+            if len(rects) == 0:
+                print('.')
+
+            # print('[%s] %d face(s) found.' % (datetime.datetime.now(), len(rects)))
             self.snapshot_face(rects, cv_img)
+            # 绘制68个点
+            self.draw_landmarks(rects, img)
             # 窗口显示图片
             self.win.clear_overlay()
             self.win.set_image(img)
@@ -71,11 +79,21 @@ class FaceSnapshot(object):
             img_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f") + '.jpg'
             full_img_path = os.path.join(self.save_path, img_name)
             cv2.imwrite(full_img_path, tmp_img)
+            print(full_img_path)
+
+    def draw_landmarks(self, rects, img):
+        for idx, face in enumerate(rects):
+            shape = self.predictor(img, face)
+
+            for i, pt in enumerate(shape.parts()):
+                pt_pos = (pt.x, pt.y)
+                # cv2.circle(img, pt_pos, 2, (0, 0, 0), 1)
+                cv2.circle(img, pt_pos, 2, (0, 255, 0), -1)
 
 
 if __name__ == '__main__':
-    video_path = 'kris.mp4'
-    save_path = 'snap_faces'
-    face_snapshot = FaceSnapshot(video_path, save_path)
+    video_path1 = 'v/1.mp4'
+    save_path1 = 'snap_faces'
+    face_snapshot = FaceSnapshot(video_path1, save_path1)
     face_snapshot.get_predictor()
     face_snapshot.detect_face()
