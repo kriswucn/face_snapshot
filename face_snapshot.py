@@ -33,9 +33,22 @@ class FaceSnapshot(object):
 
         self.cap = cv2.VideoCapture(self.video_path)
 
+        # 帧计数器
+        frame_counter = 0
+
         while self.cap.isOpened():
             ret, cv_img = self.cap.read()
-            # img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+
+            if ret is False:
+                break
+
+            # 每1帧跳6帧
+            val = frame_counter % 5
+            frame_counter += 1
+
+            if val != 0:
+                continue
+
             img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
             if img is None:
                 print('Video file maybe broken.')
@@ -92,7 +105,7 @@ class FaceSnapshot(object):
 
 
 if __name__ == '__main__':
-    video_path1 = 'v/1.mp4'
+    video_path1 = 'v/bp10.mp4'
     save_path1 = 'snap_faces'
     face_snapshot = FaceSnapshot(video_path1, save_path1)
     face_snapshot.get_predictor()
