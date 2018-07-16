@@ -5,7 +5,8 @@ import datetime
 import sys
 import os
 import numpy as np
-import logging
+import face_recognition
+import time
 
 
 class FaceSnapshot(object):
@@ -16,14 +17,60 @@ class FaceSnapshot(object):
         self.win = dlib.image_window()
         self.predictor = None
         self.cap = None
-        self.logger = logging.getLogger(__name__)
+        # 人脸库
+        self.face_lib = []
+        self.person_names = []
 
-    def get_predictor(self):
+    # 加载预测器
+    def load_predictor(self):
         current_path = os.getcwd()
-        predictor_name = 'shape_predictor_68_face_landmarks.dat'
+        # predictor_name = 'shape_predictor_68_face_landmarks.dat'
+        predictor_name = 'shape_predictor_5_face_landmarks.dat'
         predictor_path = os.path.join(current_path, predictor_name)
         self.predictor = dlib.shape_predictor(predictor_path)
 
+    # 加载人脸库
+    def load_face_lib(self, face_lib_folder='face_lib'):
+        current_folder = os.getcwd()
+        full_face_lib_folder = os.path.join(current_folder, face_lib_folder)
+        subs = os.listdir(full_face_lib_folder)
+        # 人脸图片
+        img_files = []
+
+        for i in subs:
+            full_img = os.path.join(full_face_lib_folder, i)
+            if os.path.isfile(full_img):
+                person_name = i.split('.')[0]
+                self.person_names.append(person_name)
+                img_files.append(full_img)
+                tmp_arr_img = face_recognition.load_image_file(full_img)
+                tmp_128dim = face_recognition.face_encodings(tmp_arr_img)[0]
+                self.face_lib.append(tmp_128dim)
+
+    # 人脸比对
+    def compare_face(self, xface):
+        current_folder = os.getcwd()
+        full_xface = os.path.join(current_folder, xface)
+
+        x_arr_img = face_recognition.load_image_file(full_xface)
+        try:
+            x_128dim = face_recognition.face_encodings(x_arr_img)[0]
+        except IndexError:
+            # print('x_128dim is out of bound')
+            return
+
+        result = face_recognition.compare_faces(self.face_lib, x_128dim, tolerance=0.3)
+
+        matched = False
+        for i in range(len(result)):
+            if result[i]:
+                print('%s was found.' % self.person_names[i])
+                matched = True
+
+        if matched is False:
+            print('Stranger')
+
+    # 人脸检测
     def detect_face(self):
         try:
             os.path.exists(self.video_path)
@@ -43,7 +90,7 @@ class FaceSnapshot(object):
                 break
 
             # 每1帧跳6帧
-            val = frame_counter % 5
+            val = frame_counter % 30
             frame_counter += 1
 
             if val != 0:
@@ -57,8 +104,8 @@ class FaceSnapshot(object):
             rects = self.detector(img, 0)
 
             if len(rects) == 0:
+                # print('[%s] .' % datetime.datetime.now().strftime("%Y%m%d%H%M%S%f"))
                 print('.')
-
             # print('[%s] %d face(s) found.' % (datetime.datetime.now(), len(rects)))
             self.snapshot_face(rects, cv_img)
             # 绘制68个点
@@ -67,6 +114,7 @@ class FaceSnapshot(object):
             self.win.clear_overlay()
             self.win.set_image(img)
 
+    # 人脸截图
     def snapshot_face(self, rects, cv_img):
         # 人脸区域
         if len(rects) != 0:
@@ -91,7 +139,10 @@ class FaceSnapshot(object):
 
             img_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f") + '.jpg'
             full_img_path = os.path.join(self.save_path, img_name)
+
             cv2.imwrite(full_img_path, tmp_img)
+            # 人脸比对
+            self.compare_face(full_img_path)
             print(full_img_path)
 
     def draw_landmarks(self, rects, img):
@@ -105,8 +156,11 @@ class FaceSnapshot(object):
 
 
 if __name__ == '__main__':
-    video_path1 = 'v/bp10.mp4'
+    # video_path1 = 'v/2.mp4'
+    video_path1 = 'rtsp://admin:admin12345@192.168.2.94/video/1'
+    # video_path1 = 'v/10End.mp4'
     save_path1 = 'snap_faces'
     face_snapshot = FaceSnapshot(video_path1, save_path1)
-    face_snapshot.get_predictor()
+    face_snapshot.load_predictor()
+    face_snapshot.load_face_lib()
     face_snapshot.detect_face()
